@@ -12,7 +12,7 @@ end
 
 local SilentAimSettings = {
     Enabled = false,
-    ClassName = "Universal Silent Aim",
+    ClassName = "陈亚诺是我媳妇",
     ToggleKey = "RightAlt",
     TeamCheck = false,
     VisibleCheck = false,
