@@ -12,7 +12,7 @@ end
 
 local SilentAimSettings = {
     Enabled = false,
-    ClassName = "陈亚诺是我媳妇",
+    ClassName = "7v是我媳妇7v媳妇专属。",
     ToggleKey = "RightAlt",
     TeamCheck = false,
     VisibleCheck = false,
@@ -50,9 +50,7 @@ local SilentAimSettings = {
     LeakAndHitMode = false,
     Wallbang = false,
     EnableNameTargeting = false,
-    TargetName1 = "",
-    TargetName2 = "",
-    TargetName3 = "",
+    WhitelistedNames = {},
     BlacklistedNames = {}
 }
 
@@ -195,13 +193,10 @@ function getTargetCategory(character)
 
     if SilentAimSettings.EnableNameTargeting then
         local name = character.Name:lower()
-        local t1 = SilentAimSettings.TargetName1:lower()
-        local t2 = SilentAimSettings.TargetName2:lower()
-        local t3 = SilentAimSettings.TargetName3:lower()
-        if (t1 ~= "" and string.find(name, t1, 1, true)) or
-           (t2 ~= "" and string.find(name, t2, 1, true)) or
-           (t3 ~= "" and string.find(name, t3, 1, true)) then
-            return "添加的"
+        for _, whitelistedName in ipairs(SilentAimSettings.WhitelistedNames) do
+            if whitelistedName and whitelistedName ~= "" and string.find(name, whitelistedName:lower(), 1, true) then
+                return "添加的"
+            end
         end
     end
     
@@ -216,22 +211,15 @@ local function updateNPCs()
     local newNpcList = {}
     local addedNpcs = {} 
 
-    if SilentAimSettings.EnableNameTargeting then
-        local targetSubstrings = {}
-        if SilentAimSettings.TargetName1 and SilentAimSettings.TargetName1 ~= "" then table.insert(targetSubstrings, SilentAimSettings.TargetName1:lower()) end
-        if SilentAimSettings.TargetName2 and SilentAimSettings.TargetName2 ~= "" then table.insert(targetSubstrings, SilentAimSettings.TargetName2:lower()) end
-        if SilentAimSettings.TargetName3 and SilentAimSettings.TargetName3 ~= "" then table.insert(targetSubstrings, SilentAimSettings.TargetName3:lower()) end
-
-        if #targetSubstrings > 0 then
-            for _, model in ipairs(workspace:GetDescendants()) do
-                if isNPC(model) then
-                    for _, substring in ipairs(targetSubstrings) do
-                        if string.find(model.Name:lower(), substring, 1, true) then
-                            if not addedNpcs[model] then
-                                table.insert(newNpcList, model)
-                                addedNpcs[model] = true
-                                break 
-                            end
+    if SilentAimSettings.EnableNameTargeting and #SilentAimSettings.WhitelistedNames > 0 then
+        for _, model in ipairs(workspace:GetDescendants()) do
+            if isNPC(model) then
+                for _, substring in ipairs(SilentAimSettings.WhitelistedNames) do
+                    if substring and substring ~= "" and string.find(model.Name:lower(), substring:lower(), 1, true) then
+                        if not addedNpcs[model] then
+                            table.insert(newNpcList, model)
+                            addedNpcs[model] = true
+                            break 
                         end
                     end
                 end
@@ -281,8 +269,7 @@ local function getClosestPlayer()
     
     local AimPoint = SilentAimSettings.FixedFOV and (Camera.ViewportSize / 2) or GetMouseLocation(UserInputService)
     local candidates = {}
-    local useFovCheck = SilentAimSettings.PriorityMode ~= "最近的人(无FOV)"
-
+    
     for _, Player in ipairs(GetPlayers(Players)) do
         if Player ~= LocalPlayer and not (SilentAimSettings.TeamCheck and Player.Team == LocalPlayer.Team) and not isBlacklisted(Player.Name) then
             local Character = Player.Character
@@ -294,11 +281,15 @@ local function getClosestPlayer()
                 if not (SilentAimSettings.VisibleCheck and not isPartVisible(partForChecks, LocalPlayerCharacter.Head.Position)) then
                     local physicalDist = (localRoot.Position - partForChecks.Position).Magnitude
                     if physicalDist <= SilentAimSettings.MaxDistance then
-                        local ScreenPosition, OnScreen = getPositionOnScreen(partForChecks.Position)
-                        if OnScreen then
-                            local fovDist = (AimPoint - ScreenPosition).Magnitude
-                            if not useFovCheck or fovDist <= SilentAimSettings.FOVRadius then
-                                table.insert(candidates, {character = Character, fov = fovDist, dist = physicalDist, health = Humanoid.Health})
+                        if SilentAimSettings.PriorityMode == "最近的人(无FOV)" then
+                            table.insert(candidates, {character = Character, fov = math.huge, dist = physicalDist, health = Humanoid.Health})
+                        else
+                            local ScreenPosition, OnScreen = getPositionOnScreen(partForChecks.Position)
+                            if OnScreen then
+                                local fovDist = (AimPoint - ScreenPosition).Magnitude
+                                if fovDist <= SilentAimSettings.FOVRadius then
+                                    table.insert(candidates, {character = Character, fov = fovDist, dist = physicalDist, health = Humanoid.Health})
+                                end
                             end
                         end
                     end
@@ -327,7 +318,6 @@ local function getNPCTarget()
 
     local AimPoint = SilentAimSettings.FixedFOV and (Camera.ViewportSize / 2) or GetMouseLocation(UserInputService)
     local candidates = {}
-    local useFovCheck = SilentAimSettings.PriorityMode ~= "最近的人(无FOV)"
 
     for _, NPCModel in ipairs(npcList) do
         if not (SilentAimSettings.TeamCheck and NPCModel.Team and NPCModel.Team == LocalPlayer.Team) and not isBlacklisted(NPCModel.Name) then
@@ -339,11 +329,15 @@ local function getNPCTarget()
                 if not (SilentAimSettings.VisibleCheck and not isPartVisible(partForChecks, LocalPlayerCharacter.Head.Position)) then
                     local physicalDist = (localRoot.Position - partForChecks.Position).Magnitude
                     if physicalDist <= SilentAimSettings.MaxDistance then
-                        local ScreenPosition, OnScreen = getPositionOnScreen(partForChecks.Position)
-                        if OnScreen then
-                            local fovDist = (AimPoint - ScreenPosition).Magnitude
-                            if not useFovCheck or fovDist <= SilentAimSettings.FOVRadius then
-                                table.insert(candidates, {character = NPCModel, fov = fovDist, dist = physicalDist, health = Humanoid.Health})
+                         if SilentAimSettings.PriorityMode == "最近的人(无FOV)" then
+                            table.insert(candidates, {character = NPCModel, fov = math.huge, dist = physicalDist, health = Humanoid.Health})
+                        else
+                            local ScreenPosition, OnScreen = getPositionOnScreen(partForChecks.Position)
+                            if OnScreen then
+                                local fovDist = (AimPoint - ScreenPosition).Magnitude
+                                if fovDist <= SilentAimSettings.FOVRadius then
+                                    table.insert(candidates, {character = NPCModel, fov = fovDist, dist = physicalDist, health = Humanoid.Health})
+                                end
                             end
                         end
                     end
@@ -392,7 +386,7 @@ local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
 local Options = Library.Options
 local Toggles = Library.Toggles
 
-local Window = Library:CreateWindow({ Title = "Universal Silent Aim", Footer = "1.0正式版", Center = true, AutoShow = true })
+local Window = Library:CreateWindow({ Title = "Universal Silent Aim", Footer = "1.1正式版", Center = true, AutoShow = true })
 
 local Tabs = {
     Main = Window:AddTab("主页", "user"),
@@ -407,11 +401,11 @@ MainGroupBox:AddToggle("TeamCheckToggle", { Text = "队伍检查", Default = Sil
 MainGroupBox:AddToggle("VisibleCheckToggle", { Text = "可见性检查", Default = SilentAimSettings.VisibleCheck }):OnChanged(function(Value) SilentAimSettings.VisibleCheck = Value end)
 MainGroupBox:AddToggle("WallbangToggle", { Text = "穿墙", Default = SilentAimSettings.Wallbang}):OnChanged(function(Value) SilentAimSettings.Wallbang = Value end)
 MainGroupBox:AddToggle("LeakAndHitToggle", { Text = "漏打模式", Default = SilentAimSettings.LeakAndHitMode}):OnChanged(function(Value) SilentAimSettings.LeakAndHitMode = Value end)
-MainGroupBox:AddDropdown("TargetModeDropdown", { Text = "目标种类", Default = "玩家", Values = {"玩家", "NPC", "所有"} }):OnChanged(function(Value) SilentAimSettings.TargetMode = Value end)
+MainGroupBox:AddDropdown("TargetModeDropdown", { Text = "目标种类", Default = "请选择", Values = {"玩家", "NPC", "所有"} }):OnChanged(function(Value) SilentAimSettings.TargetMode = Value end)
 MainGroupBox:AddDropdown("TargetPartDropdown", { Values = {"Head", "HumanoidRootPart", "Random"}, Default = SilentAimSettings.TargetPart, Text = "目标部位" }):OnChanged(function(Value) SilentAimSettings.TargetPart = Value end)
 MainGroupBox:AddDropdown("MethodDropdown", { Text = "静默瞄准方式", Default = SilentAimSettings.SilentAimMethod, Values = { "Raycast","FindPartOnRay", "FindPartOnRayWithWhitelist", "FindPartOnRayWithIgnoreList", "ScreenPointToRay", "ViewportPointToRay", "Ray", "Mouse.Hit/Target" } }):OnChanged(function(Value) SilentAimSettings.SilentAimMethod = Value end)
 MainGroupBox:AddSlider('HitChanceSlider', { Text = '命中率', Default = SilentAimSettings.HitChance, Min = 0, Max = 100, Rounding = 1, Suffix = "%" }):OnChanged(function(Value) SilentAimSettings.HitChance = Value end)
-MainGroupBox:AddSlider('MaxDistanceSlider', { Text = '最大距离', Default = SilentAimSettings.MaxDistance, Min = 10, Max = 9999999, Rounding = 0, Suffix = "studs" }):OnChanged(function(Value) SilentAimSettings.MaxDistance = Value end)
+MainGroupBox:AddSlider('MaxDistanceSlider', { Text = '最大距离', Default = SilentAimSettings.MaxDistance, Min = 10, Max = 2000, Rounding = 0, Suffix = "studs" }):OnChanged(function(Value) SilentAimSettings.MaxDistance = Value end)
 
 local VisualsGroupBox = Tabs.Main:AddRightGroupbox("视觉效果")
 VisualsGroupBox:AddToggle("FOVVisibleToggle", { Text = "显示FOV圈", Default = SilentAimSettings.FOVVisible }):AddColorPicker("FOVColorPicker", { Default = Color3.fromRGB(54, 57, 241), Title = "FOV圈颜色" })
@@ -512,14 +506,50 @@ local NameTargetingGroup = Tabs.Misc:AddRightGroupbox("名称索敌")
 NameTargetingGroup:AddToggle("EnableNameTargetingToggle", { Text = "启用名称索敌", Default = SilentAimSettings.EnableNameTargeting }):OnChanged(function(Value)
     SilentAimSettings.EnableNameTargeting = Value
 end)
-NameTargetingGroup:AddInput("TargetName1Input", { Text = "目标名称 1", Default = "", PlaceholderText = "输入NPC名称关键字" }):OnChanged(function(Value)
-    SilentAimSettings.TargetName1 = Value
+
+local whitelistDataOption = NameTargetingGroup:AddInput("WhitelistData", {
+    Text = "Whitelist Internal Data",
+    Default = "[]" 
+})
+whitelistDataOption.Visible = false 
+local function updateWhitelistData()
+    local jsonString = HttpService:JSONEncode(SilentAimSettings.WhitelistedNames)
+    whitelistDataOption:SetValue(jsonString)
+end
+
+NameTargetingGroup:AddInput("WhitelistNameInput", { Text = "名称", PlaceholderText = "输入要锁定的NPC名称关键字" })
+NameTargetingGroup:AddButton("添加到列表", function()
+    local name = Options.WhitelistNameInput.Value
+    if name and name ~= "" then
+        table.insert(SilentAimSettings.WhitelistedNames, name)
+        Options.WhitelistDropdown:SetValues(SilentAimSettings.WhitelistedNames)
+        Options.WhitelistNameInput:SetValue("")
+        updateWhitelistData() 
+    end
 end)
-NameTargetingGroup:AddInput("TargetName2Input", { Text = "目标名称 2", Default = "", PlaceholderText = "输入NPC名称关键字" }):OnChanged(function(Value)
-    SilentAimSettings.TargetName2 = Value
+
+NameTargetingGroup:AddDropdown("WhitelistDropdown", { Text = "名称列表", Values = SilentAimSettings.WhitelistedNames or {} })
+NameTargetingGroup:AddButton("从列表中删除", function()
+    local selectedName = Options.WhitelistDropdown.Value
+    if selectedName then
+        for i, name in ipairs(SilentAimSettings.WhitelistedNames) do
+            if name == selectedName then
+                table.remove(SilentAimSettings.WhitelistedNames, i)
+                break
+            end
+        end
+        Options.WhitelistDropdown:SetValues(SilentAimSettings.WhitelistedNames)
+        updateWhitelistData() 
+    end
 end)
-NameTargetingGroup:AddInput("TargetName3Input", { Text = "目标名称 3", Default = "", PlaceholderText = "输入NPC名称关键字" }):OnChanged(function(Value)
-    SilentAimSettings.TargetName3 = Value
+
+whitelistDataOption:OnChanged(function(jsonString)
+    if not jsonString or jsonString == "" then jsonString = "[]" end
+    local success, decoded = pcall(HttpService.JSONDecode, HttpService, jsonString)
+    if success and type(decoded) == 'table' then
+        SilentAimSettings.WhitelistedNames = decoded
+        Options.WhitelistDropdown:SetValues(SilentAimSettings.WhitelistedNames)
+    end
 end)
 
 local EntertainmentGroup = Tabs.Misc:AddRightGroupbox("娱乐")
@@ -550,34 +580,28 @@ EntertainmentGroup:AddSlider("SpinSpeedSlider", { Text = "旋转速度", Default
 end)
 
 local BlacklistGroup = Tabs.Misc:AddRightGroupbox("黑名单管理")
-
--- This hidden option will store the blacklist data for saving and loading
 local blacklistDataOption = BlacklistGroup:AddInput("BlacklistData", {
     Text = "Blacklist Internal Data",
-    Default = "[]" -- Default to an empty JSON array string
+    Default = "[]" 
 })
-blacklistDataOption.Visible = false -- Hide this from the user interface
-
--- This function updates the hidden data option whenever the blacklist is changed
+blacklistDataOption.Visible = false 
 local function updateBlacklistData()
     local jsonString = HttpService:JSONEncode(SilentAimSettings.BlacklistedNames)
     blacklistDataOption:SetValue(jsonString)
 end
 
 BlacklistGroup:AddInput("BlacklistNameInput", { Text = "名称", PlaceholderText = "输入要拉黑的精确名称" })
-
 BlacklistGroup:AddButton("添加到黑名单", function()
     local name = Options.BlacklistNameInput.Value
     if name and name ~= "" and not isBlacklisted(name) then
         table.insert(SilentAimSettings.BlacklistedNames, name)
         Options.BlacklistDropdown:SetValues(SilentAimSettings.BlacklistedNames)
         Options.BlacklistNameInput:SetValue("")
-        updateBlacklistData() -- Update the data for saving
+        updateBlacklistData() 
     end
 end)
 
 BlacklistGroup:AddDropdown("BlacklistDropdown", { Text = "黑名单列表", Values = SilentAimSettings.BlacklistedNames or {} })
-
 BlacklistGroup:AddButton("从黑名单中删除", function()
     local selectedName = Options.BlacklistDropdown.Value
     if selectedName then
@@ -588,11 +612,10 @@ BlacklistGroup:AddButton("从黑名单中删除", function()
             end
         end
         Options.BlacklistDropdown:SetValues(SilentAimSettings.BlacklistedNames)
-        updateBlacklistData() -- Update the data for saving
+        updateBlacklistData() 
     end
 end)
 
--- This function runs when a config is loaded, restoring the blacklist
 blacklistDataOption:OnChanged(function(jsonString)
     if not jsonString or jsonString == "" then jsonString = "[]" end
     local success, decoded = pcall(HttpService.JSONDecode, HttpService, jsonString)
