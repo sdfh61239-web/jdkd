@@ -386,7 +386,7 @@ local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
 local Options = Library.Options
 local Toggles = Library.Toggles
 
-local Window = Library:CreateWindow({ Title = "Universal Silent Aim", Footer = "1.1正式版", Center = true, AutoShow = true })
+local Window = Library:CreateWindow({ Title = "7v是我媳妇7v媳妇专属", Footer = "1.1正式版", Center = true, AutoShow = true })
 
 local Tabs = {
     Main = Window:AddTab("主页", "user"),
